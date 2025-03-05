@@ -39,6 +39,11 @@ pip install pytorch-triton --no-deps
 ```
 
 ```bash
+
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+
+pip install "unsloth[windows] @ git+https://github.com/unslothai/unsloth.git"
+
 # 安装unsloth
 pip install unsloth
 

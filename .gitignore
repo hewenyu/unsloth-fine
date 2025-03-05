@@ -173,3 +173,5 @@ cython_debug/
 
 temp/
 unsloth_compiled_cache/
+
+**/.vscode/
