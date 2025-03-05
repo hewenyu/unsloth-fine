@@ -1,34 +1,33 @@
+import warnings
+warnings.filterwarnings("ignore")
+
 import sys
 import torch
 import os
-from transformers import logging, AutoModelForCausalLM, AutoTokenizer
+from transformers import logging
 import time
 
-# 设置环境变量启用详细日志
-os.environ["TRANSFORMERS_VERBOSITY"] = "info"
+# 设置 unsloth 缓存目录，使用当前目录
+cache_dir = os.path.join(os.path.dirname(__file__), ".cache", "unsloth_compiled_cache")
+os.makedirs(cache_dir, exist_ok=True)
+os.environ["UNSLOTH_CACHE_DIR"] = cache_dir
+os.environ["UNSLOTH_DISABLE_COMPILE"] = "1"  # 临时禁用编译
+os.environ["UNSLOTH_DISABLE_TRITON"] = "1"   # 临时禁用 Triton
+
+# 设置环境变量
+os.environ["TRANSFORMERS_VERBOSITY"] = "debug"  # 改为 debug 级别
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "0"
 
 # 设置详细的日志级别
-logging.set_verbosity_info()
+logging.set_verbosity_debug()
 logging.enable_explicit_format()
-
-# 添加 huggingface_hub 的日志
-import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 
 if __name__ == "__main__":
     try:
-        print("开始加载模型...")
+        print("开始初始化...")
         start_time = time.time()
-        
-        # 使用小模型测试
-        model_name = "facebook/opt-125m"
-        print(f"正在加载模型: {model_name}")
         
         # 显示当前设备信息
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -37,19 +36,23 @@ if __name__ == "__main__":
             print(f"GPU: {torch.cuda.get_device_name()}")
             print(f"可用显存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
         
-        print("\n开始加载模型到内存...")
+        # 先导入 unsloth，看看是否能成功
+        print("导入 unsloth...")
+        from unsloth import FastLanguageModel
+        print("unsloth 导入成功！")
         
-        # 加载tokenizer
-        print("加载tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # 使用较小的模型
+        print("\n开始加载模型...")
+        model_name = "facebook/opt-125m"  # 使用小模型测试
         
-        # 加载模型
-        print("加载模型...")
-        model = AutoModelForCausalLM.from_pretrained(
+        model, tokenizer = FastLanguageModel.from_pretrained(
             model_name,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            max_seq_length=512,  # 减小序列长度
+            load_in_4bit=True,
             device_map="auto",
-            trust_remote_code=True
+            trust_remote_code=True,
+            use_cache=False,  # 禁用缓存
+            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
         )
         
         end_time = time.time()
