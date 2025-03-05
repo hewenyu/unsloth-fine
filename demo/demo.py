@@ -86,14 +86,14 @@ if __name__ == "__main__":
         # 默认使用fp16
         dtype = None 
         # load_in_8bit 是否使用8位量化
-        load_in_8bit = False
+        load_in_4bit = True
         
         # 加载模型
         model, tokenizer = FastLanguageModel.from_pretrained(
             model_name,
             max_seq_length=max_seq_length,
             dtype=dtype,
-            load_in_8bit=load_in_8bit
+            load_in_4bit=load_in_4bit
         )
         
         # 使用模型
