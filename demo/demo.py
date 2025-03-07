@@ -95,7 +95,6 @@ if __name__ == "__main__":
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
-                max_length=50,
                 max_new_tokens=1200,
                 do_sample=True, # 是否使用采样
                 temperature=0.7, # 温度
