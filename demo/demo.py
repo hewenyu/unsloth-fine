@@ -7,6 +7,8 @@ import os
 from transformers import logging
 import time
 
+print("Step 1: 开始设置环境变量...")  # 添加步骤提示
+
 # 设置 unsloth 缓存目录，使用当前目录
 cache_dir = os.path.join(os.path.dirname(__file__), ".cache", "unsloth_compiled_cache")
 os.makedirs(cache_dir, exist_ok=True)
@@ -22,13 +24,15 @@ os.environ["TRANSFORMERS_OFFLINE"] = "0"
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "0"
 
+print("Step 2: 环境变量设置完成")  # 添加确认信息
+
 # 设置详细的日志级别
 logging.set_verbosity_debug()
 logging.enable_explicit_format()
 
 if __name__ == "__main__":
     try:
-        print("开始初始化...")
+        print("Step 3: 开始初始化...")
         start_time = time.time()
         
         # 显示当前设备信息
@@ -39,14 +43,19 @@ if __name__ == "__main__":
             print(f"可用显存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
         
         # 先导入 unsloth，看看是否能成功
-        print("导入 unsloth...")
-        from unsloth import FastLanguageModel
-        print("unsloth 导入成功！")
+        print("Step 4: 准备导入 unsloth...")
+        try:
+            from unsloth import FastLanguageModel
+            print("Step 4.1: unsloth 导入成功！")
+        except Exception as e:
+            print(f"Step 4 失败: unsloth 导入错误: {str(e)}")
+            raise
         
+        print("Step 5: 准备加载模型...")
         # 使用较小的模型
-        print("\n开始加载模型...")
-        model_name = "facebook/opt-125m"  # 使用小模型测试
+        model_name = "unsloth/DeepSeek-R1-Distill-Llama-14B"  # 使用小模型测试
         
+        print(f"Step 5.1: 开始从 {model_name} 加载模型...")
         model, tokenizer = FastLanguageModel.from_pretrained(
             model_name,
             max_seq_length=512,  # 减小序列长度
@@ -59,7 +68,7 @@ if __name__ == "__main__":
         
         end_time = time.time()
         loading_time = end_time - start_time
-        print(f"\n模型加载成功！耗时: {loading_time:.2f} 秒")
+        print(f"\nStep 6: 模型加载成功！耗时: {loading_time:.2f} 秒")
         
         # 测试模型
         print("\n进行简单的测试...")
@@ -81,9 +90,11 @@ if __name__ == "__main__":
         print(f"输出: {response}")
         
     except Exception as e:
-        print(f"\n错误: {str(e)}")
+        print(f"\n错误发生在执行过程中: {str(e)}")
+        print("\n详细错误信息:")
         import traceback
         print(traceback.format_exc())
+        sys.exit(1)  # 添加错误退出码
 
 
 
