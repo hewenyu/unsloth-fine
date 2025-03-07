@@ -65,27 +65,43 @@ if __name__ == "__main__":
             use_cache=False,  # 禁用缓存
         )
         
+        
         end_time = time.time()
         loading_time = end_time - start_time
         print(f"\nStep 6: 模型加载成功！耗时: {loading_time:.2f} 秒")
         
+        # 使用unsloth的for_inference方法
+        FastLanguageModel.for_inference(model)
+
         # 测试模型
         print("\n进行简单的测试...")
-        test_input = "Hello, please introduce yourself."
-        print(f"输入: {test_input}")
+        prompt_style = """以下是描述任务的指令,以及提供进一步的上下文信息,请根据这些信息生成一个回答。
+        在回答之前，请仔细思考问题，并创建一个逻辑连贯的思考过程，以确保回答准确无误。
+
+        ### 指令
+        你是一个精通对对子的专家，请根据对子上联，给出下联。
+
+        ### 问题
+        {}
+
+        ### 回答
+        <thinking>{}"""
+
+        question = "画上荷花和尚画"
         
-        inputs = tokenizer(test_input, return_tensors="pt").to(device)
+        inputs = tokenizer(prompt_style.format(question, ""), return_tensors="pt").to(device)
         
         print("生成回答中...")
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
                 max_length=50,
-                num_beams=1,
-                do_sample=True,
-                temperature=0.7
+                max_new_tokens=1200,
+                do_sample=True, # 是否使用采样
+                temperature=0.7, # 温度
+                use_cache=False, # 是否使用缓存
             )
-        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        response = tokenizer.batch_decode(outputs, skip_special_tokens=True)  # skip_special_tokens=True 表示跳过特殊token
         print(f"输出: {response}")
         
     except Exception as e:
