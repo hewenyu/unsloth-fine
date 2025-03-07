@@ -53,7 +53,7 @@ if __name__ == "__main__":
         
         print("Step 5: 准备加载模型...")
         # 使用较小的模型
-        model_name = "unsloth/DeepSeek-R1-Distill-Llama-8B"  # 使用小模型测试
+        model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"  # 使用小模型测试
         
         print(f"Step 5.1: 开始从 {model_name} 加载模型...")
         model, tokenizer = FastLanguageModel.from_pretrained(
