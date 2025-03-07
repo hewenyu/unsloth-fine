@@ -14,6 +14,8 @@ os.environ["UNSLOTH_CACHE_DIR"] = cache_dir
 os.environ["UNSLOTH_DISABLE_COMPILE"] = "1"  # 临时禁用编译
 os.environ["UNSLOTH_DISABLE_TRITON"] = "1"   # 临时禁用 Triton
 
+os.environ["XFORMERS_MORE_DETAILS"] = "1"
+
 # 设置环境变量
 os.environ["TRANSFORMERS_VERBOSITY"] = "debug"  # 改为 debug 级别
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
