@@ -96,9 +96,6 @@ if __name__ == "__main__":
             outputs = model.generate(
                 **inputs,
                 max_new_tokens=1200,
-                do_sample=True, # 是否使用采样
-                temperature=0.7, # 温度
-                use_cache=False, # 是否使用缓存
             )
         response = tokenizer.batch_decode(outputs, skip_special_tokens=True)  # skip_special_tokens=True 表示跳过特殊token
         print(f"输出: {response}")
