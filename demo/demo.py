@@ -63,7 +63,6 @@ if __name__ == "__main__":
             device_map="auto",
             trust_remote_code=True,
             use_cache=False,  # 禁用缓存
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
         )
         
         end_time = time.time()
