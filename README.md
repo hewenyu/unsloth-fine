@@ -1,76 +1,51 @@
 # 基本环境
 
 ```bash
-#  第一种办法
-# Clone and checkout pytorch 2.6 release candidate
-git clone https://github.com/pytorch/pytorch
-cd pytorch
-git checkout v2.6.0-rc9
-git submodule sync
-git submodule update --init --recursive -j 8
+# install wget 
+sudo apt-get -y install wget -y
 
-# Install build dependencies (assumes you already have a system compiler)
-pip install -r requirements.txt
-pip install mkl-static mkl-include wheel
+# 安装cuda
+wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt-get update
+sudo apt-get -y install cuda-toolkit-12-4
 
-# Build PyTorch (will take a long time)
-set CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8
-set CUDA_PATH=%CUDA_HOME%
-set TORCH_CUDA_ARCH_LIST=Blackwell
-python setup.py develop
+# 安装cudnn
+sudo apt-get -y install libcudnn-dev
 
-# Optional, package build into a wheel to install on other machines.
-python setup.py bdist_wheel
-ls dist  # Wheel should be output in this directory
-```
-
-```bash
-#  第二种办法
-git clone https://github.com/triton-lang/triton.git
-cd triton
-
-pip install ninja cmake wheel pybind11 # build-time dependencies
-pip install -e python
-```
-
-```bash
-# 安装别人编译好的triton https://huggingface.co/madbuda/triton-windows-builds
-pip install pytorch-triton --no-deps
-```
-
-```bash
-
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-
-pip install "unsloth[windows] @ git+https://github.com/unslothai/unsloth.git"
+# 安装pytorch, 使用cuda12.4,需要2.5版本的
+pip install torch===2.5.0+cu124 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
 # 安装unsloth
+pip install "unsloth[cu124-torch250] @ git+https://github.com/unslothai/unsloth.git"
+
+pip install unsloth==2025.2.14 unsloth_zoo==2025.2.7
+
+conda create --name unsloth_121 \
+    python=3.11 -y
+conda activate unsloth_121
+
+
+   55  2025-03-07 15:43:10 conda env list
+   56  2025-03-07 15:43:26 conda env remove unsloth_121 -y
+   57  2025-03-07 15:43:33 conda env --help
+   58  2025-03-07 15:43:41 conda env remove -n unsloth_121 -y
+   59  2025-03-07 15:43:50 conda env --help
+   60  2025-03-07 15:43:55 conda env list
+   61  2025-03-07 15:44:01 conda env remove -n unsloth_env -y
+   62  2025-03-07 15:44:09 conda env list
+   63  2025-03-07 15:44:20 conda env remove -n unsloth_124 -y
+   64  2025-03-07 15:44:29 conda env list
+   65  2025-03-07 15:44:33 conda clean -a
+   66  2025-03-07 15:44:47 conda clean -a -y
+   67  2025-03-07 15:44:49 history
+
+conda create --name unsloth_121 \
+    python=3.11 \
+    pytorch-cuda=12.1 \
+    pytorch cudatoolkit xformers -c pytorch -c nvidia -c xformers \
+    -y
+conda activate unsloth_121
+
 pip install unsloth
-
-# 升级unsloth
-pip install --upgrade unsloth --no-cache-dir --no-deps git+https://github.com/unslothai/unsloth.git
-
-# 安装一些小工具
-
-# 安装torch
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-
-# bitsandbytes: 一个用于量化和压缩的库
-pip install bitsandbytes
-
-# unsloth_zoo: 一个用于unsloth的工具库
-pip install unsloth_zoo
-```
-
-```bash
-# 查看unsloth帮助
-unsloth --help
-```
-
-## 预训练
-
-下载预训练模型
-
-```python
-
 ```
