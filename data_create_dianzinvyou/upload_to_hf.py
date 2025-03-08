@@ -4,7 +4,7 @@ import json
 import os
 
 # 读取生成的数据集
-with open("data_create_dianzinvyou/output/girlfriend_dataset.json", "r", encoding="utf-8") as f:
+with open("data_create_dianzinvyou/output/girlfriend_dataset.jsonl", "r", encoding="utf-8") as f:
     data = json.load(f)
 
 # 转换为Dataset格式
