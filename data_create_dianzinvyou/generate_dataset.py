@@ -161,11 +161,7 @@ try:
             inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
             outputs = model.generate(
                 **inputs,
-                max_length=512,
-                temperature=0.7,
-                top_p=0.9,
-                do_sample=True,
-                pad_token_id=tokenizer.pad_token_id
+                max_new_tokens=1200, # 最大长度
             )
             response = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
