@@ -7,6 +7,10 @@ import json
 
 SiliconflowToken = home = os.environ.get("SiliconflowToken")
 
+# 目录
+os.makedirs("data_create_dianzinvyou/output", exist_ok=True)
+
+
 def get_user_message(message:str):
 
     url = "https://api.siliconflow.cn/v1/chat/completions"
