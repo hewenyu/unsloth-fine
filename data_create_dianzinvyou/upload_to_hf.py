@@ -10,10 +10,14 @@ with open("data_create_dianzinvyou/output/girlfriend_dataset.json", "r", encodin
 # 转换为Dataset格式
 dataset = Dataset.from_list(data)
 
+
+# token 从环境中获取 
+token = os.getenv("HuggingfaceToken")
+
 # 上传到HuggingFace
 dataset.push_to_hub(
     "yuebanlaosiji/e-girl",
-    token="your_hf_token_here",  # 请替换为你的HuggingFace token
+    token=token,  # 请替换为你的HuggingFace token
     private=False
 )
 
