@@ -71,7 +71,7 @@ def main():
         # 格式化数据集
         dataset = dataset.map(fromat_dataset_func, batched=True)
 
-        print(dataset["train"]["text"][0])
+        print(dataset["text"][0])
 
         # 转换为训练模式
         FastLanguageModel.for_training(model)
