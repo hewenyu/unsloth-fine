@@ -41,12 +41,13 @@ MODEL_CONFIG = {
     "max_seq_length": 2048,  # 最大序列长度
     "per_device_batch_size": 4,  # 每个设备的批次大小
     "gradient_accumulation_steps": 2,  # 梯度累积步数
-    "num_train_epochs": 2,  # 减少训练轮数防止过拟合
-    "learning_rate": 8e-5,  # 降低学习率
+    "num_train_epochs": 1,  # 减少训练轮数防止过拟合
+    "learning_rate": 5e-5,  # 降低学习率
     "lora_r": 16,  # LoRA秩
-    "lora_alpha": 32,  # 增加LoRA缩放因子
-    "lora_dropout": 0.3,  # 增加dropout防止过拟合
-    "weight_decay": 0.03,  # 增加权重衰减防止过拟合
+    "lora_alpha": 32,  # LoRA缩放因子
+    "lora_dropout": 0.35,  # 增加dropout防止过拟合
+    "weight_decay": 0.05,  # 增加权重衰减防止过拟合
+    "warmup_ratio": 0.2,  # 增加预热比例
     "model_description": "基于DeepSeek-R1-Distill-Qwen-1.5B模型训练的AI女友模型，具有温柔、体贴、善解人意的特点。"
 }
 
@@ -158,18 +159,18 @@ def main():
             per_device_eval_batch_size=MODEL_CONFIG['per_device_batch_size'],  # 评估时的批次大小
             gradient_accumulation_steps=MODEL_CONFIG['gradient_accumulation_steps'],  # 梯度累积步数
             num_train_epochs=MODEL_CONFIG['num_train_epochs'],  # 训练轮数
-            warmup_ratio=0.15,  # 增加预热比例
+            warmup_ratio=MODEL_CONFIG['warmup_ratio'],  # 预热比例
             learning_rate=MODEL_CONFIG['learning_rate'],  # 学习率
             fp16=not is_bfloat16_supported(),  # 是否使用FP16
             bf16=is_bfloat16_supported(),  # 是否使用BF16
             logging_steps=10,  # 日志记录步数
             save_strategy="steps",  # 每隔一定步数保存
-            save_steps=50,  # 每50步保存一次
+            save_steps=25,  # 更频繁保存检查点
             evaluation_strategy="steps",  # 更频繁的评估
-            eval_steps=50,  # 每50步评估一次
+            eval_steps=25,  # 更频繁评估
             save_total_limit=3,  # 保存最近3个检查点
             load_best_model_at_end=True,  # 训练结束后加载最佳模型
-            metric_for_best_model="loss",  # 使用损失作为最佳模型指标
+            metric_for_best_model="eval_loss",  # 使用验证损失作为最佳模型指标
             greater_is_better=False,  # 损失值越小越好
             optim="adamw_torch",  # 优化器
             weight_decay=MODEL_CONFIG['weight_decay'],  # 权重衰减
@@ -221,12 +222,15 @@ def main():
 ## 训练参数
 - 最大序列长度：{MODEL_CONFIG['max_seq_length']}
 - 批次大小：{MODEL_CONFIG['per_device_batch_size']}
+- 梯度累积步数：{MODEL_CONFIG['gradient_accumulation_steps']}
 - 训练轮数：{MODEL_CONFIG['num_train_epochs']}
 - 学习率：{MODEL_CONFIG['learning_rate']}
+- 预热比例：{MODEL_CONFIG['warmup_ratio']}
 - LoRA配置：
   - Rank (r): {MODEL_CONFIG['lora_r']}
   - Alpha: {MODEL_CONFIG['lora_alpha']}
   - Dropout: {MODEL_CONFIG['lora_dropout']}
+- 权重衰减：{MODEL_CONFIG['weight_decay']}
 
 ## 使用方法
 
@@ -243,28 +247,23 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map="auto"
 )
 
-# 对话模板
-template = '''你现在是一个温柔、包容、善解人意的女友。你需要以女友的身份回复用户的消息。
-用户消息: {user_input}
+# 对话示例
+message = "今天工作好累啊"
+prompt = f'''你现在是一个温柔、包容、善解人意的女友。你需要以女友的身份回复用户的消息。
+用户消息: {message}
 女友回复:'''
 
 # 生成回复
-def chat(user_input):
-    prompt = template.format(user_input=user_input)
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    outputs = model.generate(
-        **inputs,
-        max_length=2048,
-        temperature=0.7,
-        top_p=0.9,
-        repetition_penalty=1.1
-    )
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return response.split("女友回复:")[-1].strip()
-
-# 使用示例
-response = chat("今天工作好累啊")
-print(response)
+inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+outputs = model.generate(
+    **inputs,
+    max_length=2048,
+    temperature=0.7,
+    top_p=0.9,
+    repetition_penalty=1.1
+)
+response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+print(response.split("女友回复:")[-1].strip())
 ```
 
 ## 模型特点
@@ -280,6 +279,7 @@ print(response)
 
 ## 训练结果
 - 最终训练损失：{status.training_loss:.4f}
+- 最终验证损失：{status.metrics.get('eval_loss', 'N/A')}
 - 训练用时：{status.metrics['train_runtime']/60:.2f}分钟
 - 训练速度：{status.metrics['train_samples_per_second']:.2f} samples/second
 
@@ -300,6 +300,7 @@ print(response)
             "model_config": MODEL_CONFIG,
             "training_metrics": {
                 "final_loss": status.training_loss,
+                "eval_loss": status.metrics.get('eval_loss', 'N/A'),
                 "train_runtime": status.metrics['train_runtime'],
                 "train_samples_per_second": status.metrics['train_samples_per_second'],
                 "train_steps_per_second": status.metrics['train_steps_per_second'],
