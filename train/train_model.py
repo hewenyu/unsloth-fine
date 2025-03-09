@@ -41,13 +41,13 @@ MODEL_CONFIG = {
     "max_seq_length": 2048,  # 最大序列长度
     "per_device_batch_size": 4,  # 每个设备的批次大小
     "gradient_accumulation_steps": 2,  # 梯度累积步数
-    "num_train_epochs": 1,  # 减少训练轮数防止过拟合
-    "learning_rate": 5e-5,  # 降低学习率
+    "num_train_epochs": 1,  # 训练轮数
+    "learning_rate": 3e-5,  # 进一步降低学习率
     "lora_r": 16,  # LoRA秩
     "lora_alpha": 32,  # LoRA缩放因子
-    "lora_dropout": 0.35,  # 增加dropout防止过拟合
-    "weight_decay": 0.05,  # 增加权重衰减防止过拟合
-    "warmup_ratio": 0.2,  # 增加预热比例
+    "lora_dropout": 0.4,  # 增加dropout进一步防止过拟合
+    "weight_decay": 0.07,  # 增加权重衰减进一步防止过拟合
+    "warmup_ratio": 0.25,  # 增加预热比例提高稳定性
     "model_description": "基于DeepSeek-R1-Distill-Qwen-1.5B模型训练的AI女友模型，具有温柔、体贴、善解人意的特点。"
 }
 
@@ -165,10 +165,10 @@ def main():
             bf16=is_bfloat16_supported(),  # 是否使用BF16
             logging_steps=10,  # 日志记录步数
             save_strategy="steps",  # 每隔一定步数保存
-            save_steps=25,  # 更频繁保存检查点
+            save_steps=20,  # 更频繁保存检查点
             evaluation_strategy="steps",  # 更频繁的评估
-            eval_steps=25,  # 更频繁评估
-            save_total_limit=3,  # 保存最近3个检查点
+            eval_steps=20,  # 更频繁评估
+            save_total_limit=5,  # 增加保存的检查点数量
             load_best_model_at_end=True,  # 训练结束后加载最佳模型
             metric_for_best_model="eval_loss",  # 使用验证损失作为最佳模型指标
             greater_is_better=False,  # 损失值越小越好
@@ -176,12 +176,18 @@ def main():
             weight_decay=MODEL_CONFIG['weight_decay'],  # 权重衰减
             lr_scheduler_type="cosine",  # 学习率调度器类型
             seed=3407,  # 随机种子
+            # 添加梯度裁剪
+            max_grad_norm=0.5,  # 梯度裁剪阈值
+            # 添加数据加载优化
+            dataloader_num_workers=4,  # 数据加载线程数
+            remove_unused_columns=True,  # 移除未使用的列
+            label_smoothing_factor=0.1,  # 添加标签平滑
         )
 
         # 创建早停回调
         early_stopping_callback = EarlyStoppingCallback(
-            early_stopping_patience=3,  # 3个评估周期没有改善就停止
-            early_stopping_threshold=0.01  # 改善阈值
+            early_stopping_patience=4,  # 增加早停耐心值
+            early_stopping_threshold=0.005  # 降低改善阈值使其更敏感
         )
 
         # 创建训练器
