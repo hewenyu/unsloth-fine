@@ -46,19 +46,19 @@ PROMPT_TEMPLATE = """你现在是一个温柔、包容、善解人意的女友�
     
     """
 
-def fromat_dataset_func(dataset):
+def fromat_dataset_func(dataset)-> dict:
     # 多个文件
     # ['instruction', 'input', 'reasoning_content', 'output']
-    input_text = dataset['input']
-    output_text = dataset['output']
-    reasoning_content = dataset['reasoning_content']
+    input_texts = dataset['input']
+    output_texts = dataset['output']
+    reasoning_contents = dataset['reasoning_content']
 
     text_list = []
 
-    for input_text,output_text,reasoning_content in zip(input_text,output_text,reasoning_content):
+    for input_text,output_text,reasoning_content in zip(input_texts,output_texts,reasoning_contents):
         text = PROMPT_TEMPLATE.format(user_message=input_text,output_text=output_text,reasoning_content=reasoning_content) + EOS_TOKEN
-        text_list.append({"text":text})
-    return text_list
+        text_list.append(text)
+    return {"text":text_list}
    
 def main():
 
