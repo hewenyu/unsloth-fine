@@ -57,7 +57,7 @@ def fromat_dataset_func(dataset):
 
     for input_text,output_text,reasoning_content in zip(input_text,output_text,reasoning_content):
         text = PROMPT_TEMPLATE.format(user_message=input_text,output_text=output_text,reasoning_content=reasoning_content) + EOS_TOKEN
-        text_list.append(text)
+        text_list.append({"text":text})
     return text_list
    
 def main():
@@ -112,6 +112,7 @@ def main():
         trainer = SFTTrainer(
             model=new_model,
             train_dataset=text_list,
+            dataset_text_field="text",
             tokenizer=tokenizer,
             max_seq_length=max_seq_length,
             dataset_num_proc=4, # 设置数据集处理进程数
