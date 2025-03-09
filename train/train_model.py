@@ -10,7 +10,7 @@ from unsloth import is_bfloat16_supported  # 检查是否支持bfloat16
 import logging  # 日志记录
 from datetime import datetime
 import sys
-from huggingface_hub import create_repo  # HuggingFace仓库创建工具
+from huggingface_hub import create_repo, upload_folder  # HuggingFace仓库创建工具
 
 # 设置环境变量以启用 Flash Attention 2（用于加速注意力计算）
 os.environ["USE_FLASH_ATTENTION"] = "1"
@@ -324,9 +324,11 @@ print(response.split("女友回复:")[-1].strip())
         create_repo(repo_id=repo_name, repo_type="model", token=token, exist_ok=True)
 
         logging.info("正在上传模型到HuggingFace Hub...")
-        new_model.push_to_hub(
-            repo_name,
-            tokenizer=tokenizer,
+
+        # 上传模型权重和配置
+        upload_folder(
+            repo_id=repo_name,
+            folder_path=final_model_path,
             token=token,
             commit_message=f"Update model with training loss {status.training_loss:.4f}"
         )
