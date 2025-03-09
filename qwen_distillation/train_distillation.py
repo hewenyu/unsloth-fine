@@ -193,7 +193,9 @@ def main():
         model_name=args.teacher_model_id,
         **TEACHER_MODEL_LOAD_KWARGS
     )
-    teacher_model = teacher_model.get_peft_model()
+    # Set teacher model to evaluation mode instead of applying PEFT
+    teacher_model = teacher_model.to_hf_model()
+    teacher_model.eval()
     
     logger.info(f"Loading student model: {args.student_model_id}")
     # Load the student model
