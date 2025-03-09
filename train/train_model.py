@@ -69,7 +69,7 @@ def main():
         print(dataset['train'].column_names)
 
         # 格式化数据集
-        dataset = dataset.map(fromat_dataset_func, batched=True)
+        dataset = dataset['train'].map(fromat_dataset_func, batched=True)
 
         print(dataset["text"][0])
 
