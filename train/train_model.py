@@ -81,7 +81,6 @@ def main():
             target_modules=["q_proj", "v_proj","k_proj","o_proj","gate_proj","up_proj","down_proj"], # 设置lora 目标模块
             lora_alpha=16, # 设置lora 缩放因子
             lora_dropout=0.1, # 设置lora 丢弃率 ,防止过拟合
-            lora_train_bias=False, # 设置lora 偏置
             bias="none", # 设置偏置,none 不使用偏置
             use_gradient_checkpointing="unsloth", # 设置梯度检查点
             random_state=3407, # 设置随机种子, 确保每次训练结果一致
