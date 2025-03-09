@@ -7,25 +7,53 @@ from trl import SFTTrainer
 from unsloth import is_bfloat16_supported
 import logging
 from datetime import datetime
+import sys
+from dotenv import load_dotenv
+from huggingface_hub import create_repo
+
+# Load environment variables
+load_dotenv()
 
 # 设置环境变量以启用 Flash Attention 2
 os.environ["USE_FLASH_ATTENTION"] = "1"
-# 确保输出目录存在
-os.makedirs("data_create_dianzinvyou/output", exist_ok=True)
 
-model_name = "unsloth/DeepSeek-R1-Distill-Qwen-1.5B"
+# 设置日志
+log_dir = "data_create_dianzinvyou/output/logs"
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, f'training_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+# 确保输出目录存在
+output_base_dir = "data_create_dianzinvyou/output"
+model_output_dir = os.path.join(output_base_dir, f'model_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
+os.makedirs(model_output_dir, exist_ok=True)
+
+# Model configuration
+MODEL_CONFIG = {
+    "model_name": "unsloth/DeepSeek-R1-Distill-Qwen-1.5B",
+    "max_seq_length": 2048,
+    "per_device_batch_size": 4,
+    "gradient_accumulation_steps": 4,
+    "num_train_epochs": 5,
+    "learning_rate": 2e-4,
+    "lora_r": 16,
+    "lora_alpha": 16,
+    "lora_dropout": 0.1
+}
+
+model_name = MODEL_CONFIG["model_name"]
 model,tokenizer = FastLanguageModel.from_pretrained(model_name, trust_remote_code=True)
 
 # 添加 EOS 标记
 EOS_TOKEN = tokenizer.eos_token
-
-# 设置日志
-logging.basicConfig(
-    filename=f'data_create_dianzinvyou/output/generation_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
 
 PROMPT_TEMPLATE = """你现在是一个温柔、包容、善解人意的女友。你需要以女友的身份回复用户的消息。
     你的性格特点：
@@ -61,89 +89,103 @@ def fromat_dataset_func(dataset):
     return {"text":text_list}
    
 def main():
-
     try:
+        # Log configuration
+        logging.info("Starting training with configuration:")
+        for key, value in MODEL_CONFIG.items():
+            logging.info(f"{key}: {value}")
+
+        # Check for required environment variables
+        token = os.getenv("HuggingfaceToken")
+        if not token:
+            raise ValueError("HuggingfaceToken environment variable is not set")
+
         # 加载数据集
-        dataset = load_dataset("yuebanlaosiji/e-girl",trust_remote_code=True)
-        # 多个文件
-        print(dataset['train'].column_names)
+        logging.info("Loading dataset...")
+        dataset = load_dataset("yuebanlaosiji/e-girl", trust_remote_code=True)
+        logging.info(f"Dataset loaded with {len(dataset['train'])} training examples")
 
         # 格式化数据集
+        logging.info("Formatting dataset...")
         dataset = dataset['train'].map(fromat_dataset_func, batched=True)
+        logging.info("Dataset formatting completed")
 
-        print(dataset["text"][0])
+        # Load model and tokenizer
+        logging.info(f"Loading model: {MODEL_CONFIG['model_name']}")
+        model, tokenizer = FastLanguageModel.from_pretrained(
+            MODEL_CONFIG['model_name'],
+            trust_remote_code=True
+        )
 
         # 转换为训练模式
         FastLanguageModel.for_training(model)
         new_model = FastLanguageModel.get_peft_model(
             model,
-            r=16, # 设置lora 秩
-            target_modules=["q_proj", "v_proj","k_proj","o_proj","gate_proj","up_proj","down_proj"], # 设置lora 目标模块
-            lora_alpha=16, # 设置lora 缩放因子
-            lora_dropout=0.1, # 设置lora 丢弃率 ,防止过拟合
-            bias="none", # 设置偏置,none 不使用偏置
-            use_gradient_checkpointing="unsloth", # 设置梯度检查点
-            random_state=3407, # 设置随机种子, 确保每次训练结果一致
-            use_rslora=False, # 设置rslora,False 不使用rslora
-            loftq_config= None, # 设置loftq 配置,None 不使用loftq
+            r=MODEL_CONFIG['lora_r'],
+            target_modules=["q_proj", "v_proj","k_proj","o_proj","gate_proj","up_proj","down_proj"],
+            lora_alpha=MODEL_CONFIG['lora_alpha'],
+            lora_dropout=MODEL_CONFIG['lora_dropout'],
+            bias="none",
+            use_gradient_checkpointing="unsloth",
+            random_state=3407,
+            use_rslora=False,
+            loftq_config=None,
         )
 
-        # args_info
         training_args = TrainingArguments(
-            output_dir="output",
-            per_device_train_batch_size=4, # 设置每个设备训练批次大小
-            gradient_accumulation_steps=4, # 设置梯度累积步数,用于模拟大batch_size
-            num_train_epochs=5, # 设置训练轮数,2.5K数据建议3-5轮
-            warmup_ratio=0.1, # 设置预热比例,总步数的10%
-            learning_rate=2e-4, # 设置学习率
-            fp16=not is_bfloat16_supported(), # 设置fp16
-            bf16=is_bfloat16_supported(), # 设置bf16
-            logging_steps=10, # 每10步记录一次日志
-            save_steps=100, # 每100步保存一次模型
-            eval_steps=100, # 每100步评估一次
-            optim="adamw_torch", # 设置优化器
-            weight_decay=0.01, # 设置权重衰减
-            lr_scheduler_type="cosine", # 余弦退火学习率
-            seed=3407, # 设置随机种子
+            output_dir=model_output_dir,
+            per_device_train_batch_size=MODEL_CONFIG['per_device_batch_size'],
+            gradient_accumulation_steps=MODEL_CONFIG['gradient_accumulation_steps'],
+            num_train_epochs=MODEL_CONFIG['num_train_epochs'],
+            warmup_ratio=0.1,
+            learning_rate=MODEL_CONFIG['learning_rate'],
+            fp16=not is_bfloat16_supported(),
+            bf16=is_bfloat16_supported(),
+            logging_steps=10,
+            save_steps=100,
+            eval_steps=100,
+            save_total_limit=3,  # Keep only the last 3 checkpoints
+            load_best_model_at_end=True,  # Load the best model when training is finished
+            metric_for_best_model="loss",  # Use loss to determine the best model
+            greater_is_better=False,  # Lower loss is better
+            optim="adamw_torch",
+            weight_decay=0.01,
+            lr_scheduler_type="cosine",
+            seed=3407,
         )
-        # max_seq_length 越大越好
-        max_seq_length = 2048
 
-        # 训练模型  
         trainer = SFTTrainer(
             model=new_model,
-            train_dataset=dataset, 
+            train_dataset=dataset,
             dataset_text_field="text",
             tokenizer=tokenizer,
-            max_seq_length=max_seq_length,
-            dataset_num_proc=4, # 设置数据集处理进程数
-            packing=True, # 设置数据集打包
+            max_seq_length=MODEL_CONFIG['max_seq_length'],
+            dataset_num_proc=4,
+            packing=True,
             args=training_args
         )
 
+        logging.info("Starting training...")
         status = trainer.train()
+        logging.info(f"Training completed with status: {status}")
 
-        print(status)
+        # Save the final model
+        final_model_path = os.path.join(model_output_dir, "final_model")
+        logging.info(f"Saving final model to {final_model_path}")
+        new_model.save_pretrained(final_model_path)
 
-        # 保存模型
-        new_model.save_pretrained("output/model")
-        # tokenizer.save_pretrained("output/tokenizer")
-
-        from huggingface_hub import create_repo
-        token = os.getenv("HuggingfaceToken")
-
+        # Upload to HuggingFace Hub
         repo_name = "yuebanlaosiji/e-girl-model"
-        create_repo(repo_id=repo_name,repo_type="model",token=token,exist_ok=True)
+        logging.info(f"Creating/updating repository: {repo_name}")
+        create_repo(repo_id=repo_name, repo_type="model", token=token, exist_ok=True)
 
-        # 上传模型到huggingface
-        new_model.push_to_hub(repo_name,tokenizer=tokenizer,token=token)
+        logging.info("Pushing model to HuggingFace Hub...")
+        new_model.push_to_hub(repo_name, tokenizer=tokenizer, token=token)
+        logging.info("Model successfully pushed to HuggingFace Hub")
 
     except Exception as e:
-        logging.error(f"训练过程中发生错误: {e}")
+        logging.error(f"Training failed with error: {str(e)}", exc_info=True)
         raise e
-
-
-
 
 if __name__ == "__main__":
     main()
