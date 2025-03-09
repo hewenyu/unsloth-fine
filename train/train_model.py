@@ -247,10 +247,9 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map="auto"
 )
 
-# 对话示例
-message = "今天工作好累啊"
-prompt = f'''你现在是一个温柔、包容、善解人意的女友。你需要以女友的身份回复用户的消息。
-用户消息: {message}
+# 示例对话
+prompt = '''你现在是一个温柔、包容、善解人意的女友。你需要以女友的身份回复用户的消息。
+用户消息: 今天工作好累啊
 女友回复:'''
 
 # 生成回复
