@@ -43,4 +43,4 @@ outputs = model.generate(
 
 if __name__ == "__main__":
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    print(response.split("女友回复:")[-1].strip())
+    print(response)
