@@ -117,8 +117,13 @@ def main():
 
         # 格式化数据集
         logging.info("正在格式化数据集...")
-        dataset = dataset['train'].map(fromat_dataset_func, batched=True)
-        logging.info("数据集格式化完成")
+        formatted_dataset = dataset['train'].map(fromat_dataset_func, batched=True)
+        
+        # 分割数据集为训练集和验证集 (90% 训练, 10% 验证)
+        train_val_split = formatted_dataset.train_test_split(test_size=0.1, seed=3407)
+        train_dataset = train_val_split['train']
+        eval_dataset = train_val_split['test']
+        logging.info(f"数据集分割完成，训练集大小：{len(train_dataset)}，验证集大小：{len(eval_dataset)}")
 
         # 加载模型和分词器
         logging.info(f"正在加载模型：{MODEL_CONFIG['model_name']}")
@@ -147,6 +152,7 @@ def main():
         training_args = TrainingArguments(
             output_dir=model_output_dir,  # 输出目录
             per_device_train_batch_size=MODEL_CONFIG['per_device_batch_size'],  # 每设备批次大小
+            per_device_eval_batch_size=MODEL_CONFIG['per_device_batch_size'],  # 评估时的批次大小
             gradient_accumulation_steps=MODEL_CONFIG['gradient_accumulation_steps'],  # 梯度累积步数
             num_train_epochs=MODEL_CONFIG['num_train_epochs'],  # 训练轮数
             warmup_ratio=0.1,  # 预热比例
@@ -154,8 +160,8 @@ def main():
             fp16=not is_bfloat16_supported(),  # 是否使用FP16
             bf16=is_bfloat16_supported(),  # 是否使用BF16
             logging_steps=10,  # 日志记录步数
-            save_steps=100,  # 保存检查点步数
-            eval_steps=100,  # 评估步数
+            save_strategy="epoch",  # 每个epoch保存一次
+            evaluation_strategy="epoch",  # 每个epoch评估一次
             save_total_limit=3,  # 保存最近3个检查点
             load_best_model_at_end=True,  # 训练结束后加载最佳模型
             metric_for_best_model="loss",  # 使用损失作为最佳模型指标
@@ -169,7 +175,8 @@ def main():
         # 创建训练器
         trainer = SFTTrainer(
             model=new_model,
-            train_dataset=dataset,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,  # 添加验证集
             dataset_text_field="text",
             tokenizer=tokenizer,
             max_seq_length=MODEL_CONFIG['max_seq_length'],
