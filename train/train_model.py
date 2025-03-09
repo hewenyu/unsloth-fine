@@ -58,7 +58,7 @@ def fromat_dataset_func(dataset):
     for input_text,output_text,reasoning_content in zip(input_texts,output_texts,reasoning_contents):
         text = PROMPT_TEMPLATE.format(user_message=input_text,output_text=output_text,reasoning_content=reasoning_content) + EOS_TOKEN
         text_list.append(text)
-    return text_list
+    return {"text":text_list}
    
 def main():
 
@@ -71,7 +71,9 @@ def main():
         # 格式化数据集
         text_list = fromat_dataset_func(dataset['train'])
 
-        print(text_list["text"][0])
+        dataset = dataset.map(fromat_dataset_func, batched=True)
+
+        print(dataset["train"]["text"][0])
 
         # 转换为训练模式
         FastLanguageModel.for_training(model)
@@ -111,7 +113,7 @@ def main():
         # 训练模型  
         trainer = SFTTrainer(
             model=new_model,
-            train_dataset={"text":text_list}, 
+            train_dataset=dataset, 
             dataset_text_field="text",
             tokenizer=tokenizer,
             max_seq_length=max_seq_length,
