@@ -40,13 +40,13 @@ MODEL_CONFIG = {
     "model_name": "unsloth/DeepSeek-R1-Distill-Qwen-1.5B",  # 基础模型名称
     "max_seq_length": 2048,  # 最大序列长度
     "per_device_batch_size": 4,  # 每个设备的批次大小
-    "gradient_accumulation_steps": 2,  # 减少梯度累积步数
-    "num_train_epochs": 3,  # 减少训练轮数
-    "learning_rate": 1e-4,  # 降低学习率
+    "gradient_accumulation_steps": 2,  # 梯度累积步数
+    "num_train_epochs": 2,  # 减少训练轮数防止过拟合
+    "learning_rate": 8e-5,  # 降低学习率
     "lora_r": 16,  # LoRA秩
-    "lora_alpha": 16,  # LoRA缩放因子
-    "lora_dropout": 0.2,  # 增加dropout防止过拟合
-    "weight_decay": 0.02,  # 增加权重衰减
+    "lora_alpha": 32,  # 增加LoRA缩放因子
+    "lora_dropout": 0.3,  # 增加dropout防止过拟合
+    "weight_decay": 0.03,  # 增加权重衰减防止过拟合
     "model_description": "基于DeepSeek-R1-Distill-Qwen-1.5B模型训练的AI女友模型，具有温柔、体贴、善解人意的特点。"
 }
 
@@ -122,8 +122,8 @@ def main():
         logging.info("正在格式化数据集...")
         formatted_dataset = dataset['train'].map(fromat_dataset_func, batched=True)
         
-        # 分割数据集为训练集和验证集 (90% 训练, 10% 验证)
-        train_val_split = formatted_dataset.train_test_split(test_size=0.1, seed=3407)
+        # 分割数据集为训练集和验证集 (85% 训练, 15% 验证)
+        train_val_split = formatted_dataset.train_test_split(test_size=0.15, seed=3407)
         train_dataset = train_val_split['train']
         eval_dataset = train_val_split['test']
         logging.info(f"数据集分割完成，训练集大小：{len(train_dataset)}，验证集大小：{len(eval_dataset)}")
@@ -158,13 +158,14 @@ def main():
             per_device_eval_batch_size=MODEL_CONFIG['per_device_batch_size'],  # 评估时的批次大小
             gradient_accumulation_steps=MODEL_CONFIG['gradient_accumulation_steps'],  # 梯度累积步数
             num_train_epochs=MODEL_CONFIG['num_train_epochs'],  # 训练轮数
-            warmup_ratio=0.1,  # 预热比例
+            warmup_ratio=0.15,  # 增加预热比例
             learning_rate=MODEL_CONFIG['learning_rate'],  # 学习率
             fp16=not is_bfloat16_supported(),  # 是否使用FP16
             bf16=is_bfloat16_supported(),  # 是否使用BF16
             logging_steps=10,  # 日志记录步数
             save_strategy="epoch",  # 每个epoch保存一次
-            eval_strategy="epoch",  # 每个epoch评估一次
+            evaluation_strategy="steps",  # 更频繁的评估
+            eval_steps=50,  # 每50步评估一次
             save_total_limit=3,  # 保存最近3个检查点
             load_best_model_at_end=True,  # 训练结束后加载最佳模型
             metric_for_best_model="loss",  # 使用损失作为最佳模型指标
@@ -173,6 +174,9 @@ def main():
             weight_decay=MODEL_CONFIG['weight_decay'],  # 权重衰减
             lr_scheduler_type="cosine",  # 学习率调度器类型
             seed=3407,  # 随机种子
+            # 添加早停机制
+            early_stopping_patience=3,  # 3个评估周期没有改善就停止
+            early_stopping_threshold=0.01,  # 改善阈值
         )
 
         # 创建训练器
@@ -185,7 +189,12 @@ def main():
             max_seq_length=MODEL_CONFIG['max_seq_length'],
             dataset_num_proc=4,  # 数据处理进程数
             packing=True,  # 启用序列打包
-            args=training_args
+            args=training_args,
+            # 添加早停回调
+            callbacks=[EarlyStoppingCallback(
+                early_stopping_patience=3,
+                early_stopping_threshold=0.01
+            )]
         )
 
         # 开始训练
