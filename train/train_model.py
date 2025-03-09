@@ -2,8 +2,9 @@
 from unsloth import FastLanguageModel  # 导入unsloth的快速语言模型
 import torch  # PyTorch深度学习框架
 from datasets import load_dataset  # Hugging Face数据集加载工具
-from transformers import TrainingArguments  # 训练参数配置
+from transformers import TrainingArguments, EarlyStoppingCallback  # 训练参数配置和早停回调
 import os
+import json
 from trl import SFTTrainer  # 监督微调训练器
 from unsloth import is_bfloat16_supported  # 检查是否支持bfloat16
 import logging  # 日志记录
@@ -39,12 +40,14 @@ MODEL_CONFIG = {
     "model_name": "unsloth/DeepSeek-R1-Distill-Qwen-1.5B",  # 基础模型名称
     "max_seq_length": 2048,  # 最大序列长度
     "per_device_batch_size": 4,  # 每个设备的批次大小
-    "gradient_accumulation_steps": 4,  # 梯度累积步数
-    "num_train_epochs": 5,  # 训练轮数
-    "learning_rate": 2e-4,  # 学习率
+    "gradient_accumulation_steps": 2,  # 减少梯度累积步数
+    "num_train_epochs": 3,  # 减少训练轮数
+    "learning_rate": 1e-4,  # 降低学习率
     "lora_r": 16,  # LoRA秩
     "lora_alpha": 16,  # LoRA缩放因子
-    "lora_dropout": 0.1  # LoRA dropout率
+    "lora_dropout": 0.2,  # 增加dropout防止过拟合
+    "weight_decay": 0.02,  # 增加权重衰减
+    "model_description": "基于DeepSeek-R1-Distill-Qwen-1.5B模型训练的AI女友模型，具有温柔、体贴、善解人意的特点。"
 }
 
 # 加载预训练模型和分词器
@@ -167,7 +170,7 @@ def main():
             metric_for_best_model="loss",  # 使用损失作为最佳模型指标
             greater_is_better=False,  # 损失值越小越好
             optim="adamw_torch",  # 优化器
-            weight_decay=0.01,  # 权重衰减
+            weight_decay=MODEL_CONFIG['weight_decay'],  # 权重衰减
             lr_scheduler_type="cosine",  # 学习率调度器类型
             seed=3407,  # 随机种子
         )
@@ -193,7 +196,112 @@ def main():
         # 保存最终模型
         final_model_path = os.path.join(model_output_dir, "final_model")
         logging.info(f"正在保存最终模型到：{final_model_path}")
+        
+        # 1. 保存模型权重和配置
         new_model.save_pretrained(final_model_path)
+        tokenizer.save_pretrained(final_model_path)
+        
+        # 2. 创建详细的README.md
+        readme_content = f"""# AI女友模型 - 基于DeepSeek-R1-Distill-Qwen-1.5B
+
+## 模型信息
+- 基础模型：{MODEL_CONFIG['model_name']}
+- 训练时间：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+- 模型描述：{MODEL_CONFIG['model_description']}
+
+## 训练参数
+- 最大序列长度：{MODEL_CONFIG['max_seq_length']}
+- 批次大小：{MODEL_CONFIG['per_device_batch_size']}
+- 训练轮数：{MODEL_CONFIG['num_train_epochs']}
+- 学习率：{MODEL_CONFIG['learning_rate']}
+- LoRA配置：
+  - Rank (r): {MODEL_CONFIG['lora_r']}
+  - Alpha: {MODEL_CONFIG['lora_alpha']}
+  - Dropout: {MODEL_CONFIG['lora_dropout']}
+
+## 使用方法
+
+```python
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+
+# 加载模型和分词器
+model_name = "yuebanlaosiji/e-girl-model"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    trust_remote_code=True,
+    device_map="auto"
+)
+
+# 对话模板
+template = '''你现在是一个温柔、包容、善解人意的女友。你需要以女友的身份回复用户的消息。
+用户消息: {user_input}
+女友回复:'''
+
+# 生成回复
+def chat(user_input):
+    prompt = template.format(user_input=user_input)
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    outputs = model.generate(
+        **inputs,
+        max_length=2048,
+        temperature=0.7,
+        top_p=0.9,
+        repetition_penalty=1.1
+    )
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return response.split("女友回复:")[-1].strip()
+
+# 使用示例
+response = chat("今天工作好累啊")
+print(response)
+```
+
+## 模型特点
+1. 温柔体贴，善于倾听
+2. 积极向上，富有正能量
+3. 会适当撒娇，但不会过分
+4. 懂得关心对方的工作和生活
+5. 会给予对方鼓励和支持
+
+## 训练数据
+- 训练集大小：{len(train_dataset)}
+- 验证集大小：{len(eval_dataset)}
+
+## 训练结果
+- 最终训练损失：{status.training_loss:.4f}
+- 训练用时：{status.metrics['train_runtime']/60:.2f}分钟
+- 训练速度：{status.metrics['train_samples_per_second']:.2f} samples/second
+
+## 注意事项
+1. 模型输出可能带有主观性和不确定性
+2. 建议在适当的场景下使用
+3. 模型输出仅供参考，请勿过分依赖
+
+## 许可证
+本项目采用 MIT 许可证
+"""
+        
+        with open(os.path.join(final_model_path, "README.md"), "w", encoding="utf-8") as f:
+            f.write(readme_content)
+        
+        # 3. 保存训练配置和性能指标
+        training_info = {
+            "model_config": MODEL_CONFIG,
+            "training_metrics": {
+                "final_loss": status.training_loss,
+                "train_runtime": status.metrics['train_runtime'],
+                "train_samples_per_second": status.metrics['train_samples_per_second'],
+                "train_steps_per_second": status.metrics['train_steps_per_second'],
+                "train_dataset_size": len(train_dataset),
+                "eval_dataset_size": len(eval_dataset)
+            },
+            "training_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        with open(os.path.join(final_model_path, "training_info.json"), "w", encoding="utf-8") as f:
+            json.dump(training_info, f, ensure_ascii=False, indent=2)
 
         # 上传到HuggingFace Hub
         repo_name = "yuebanlaosiji/e-girl-model"
@@ -201,7 +309,12 @@ def main():
         create_repo(repo_id=repo_name, repo_type="model", token=token, exist_ok=True)
 
         logging.info("正在上传模型到HuggingFace Hub...")
-        new_model.push_to_hub(repo_name, tokenizer=tokenizer, token=token)
+        new_model.push_to_hub(
+            repo_name,
+            tokenizer=tokenizer,
+            token=token,
+            commit_message=f"Update model with training loss {status.training_loss:.4f}"
+        )
         logging.info("模型上传完成！")
 
     except Exception as e:
