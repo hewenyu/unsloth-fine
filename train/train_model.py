@@ -164,7 +164,7 @@ def main():
             bf16=is_bfloat16_supported(),  # 是否使用BF16
             logging_steps=10,  # 日志记录步数
             save_strategy="epoch",  # 每个epoch保存一次
-            evaluation_strategy="epoch",  # 每个epoch评估一次
+            eval_strategy="epoch",  # 每个epoch评估一次
             save_total_limit=3,  # 保存最近3个检查点
             load_best_model_at_end=True,  # 训练结束后加载最佳模型
             metric_for_best_model="loss",  # 使用损失作为最佳模型指标
