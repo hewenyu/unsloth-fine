@@ -46,7 +46,7 @@ PROMPT_TEMPLATE = """你现在是一个温柔、包容、善解人意的女友�
     
     """
 
-def fromat_dataset_func(dataset)-> dict:
+def fromat_dataset_func(dataset):
     # 多个文件
     # ['instruction', 'input', 'reasoning_content', 'output']
     input_texts = dataset['input']
@@ -58,7 +58,7 @@ def fromat_dataset_func(dataset)-> dict:
     for input_text,output_text,reasoning_content in zip(input_texts,output_texts,reasoning_contents):
         text = PROMPT_TEMPLATE.format(user_message=input_text,output_text=output_text,reasoning_content=reasoning_content) + EOS_TOKEN
         text_list.append(text)
-    return {"text":text_list}
+    return text_list
    
 def main():
 
@@ -111,7 +111,7 @@ def main():
         # 训练模型  
         trainer = SFTTrainer(
             model=new_model,
-            train_dataset=text_list,
+            train_dataset={"text":text_list}, 
             dataset_text_field="text",
             tokenizer=tokenizer,
             max_seq_length=max_seq_length,
