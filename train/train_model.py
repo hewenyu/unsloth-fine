@@ -93,7 +93,7 @@ def main():
             output_dir="output",
             per_device_train_batch_size=4, # 设置每个设备训练批次大小
             gradient_accumulation_steps=4, # 设置梯度累积步数,用于模拟大batch_size
-            num_train_epochs=3, # 设置训练轮数,2.5K数据建议3-5轮
+            num_train_epochs=5, # 设置训练轮数,2.5K数据建议3-5轮
             warmup_ratio=0.1, # 设置预热比例,总步数的10%
             learning_rate=2e-4, # 设置学习率
             fp16=not is_bfloat16_supported(), # 设置fp16
@@ -121,7 +121,22 @@ def main():
             args=training_args
         )
 
-        trainer.train()
+        status = trainer.train()
+
+        print(status)
+
+        # 保存模型
+        new_model.save_pretrained("output/model")
+        # tokenizer.save_pretrained("output/tokenizer")
+
+        from huggingface_hub import create_repo
+        token = os.getenv("HuggingfaceToken")
+
+        repo_name = "yuebanlaosiji/e-girl-model"
+        create_repo(repo_id=repo_name,repo_type="model",token=token,exist_ok=True)
+
+        # 上传模型到huggingface
+        new_model.push_to_hub(repo_name,tokenizer=tokenizer,token=token)
 
     except Exception as e:
         logging.error(f"训练过程中发生错误: {e}")
