@@ -91,17 +91,19 @@ def main():
         # args_info
         training_args = TrainingArguments(
             output_dir="output",
-            per_device_train_batch_size=2, # 设置每个设备训练批次大小
+            per_device_train_batch_size=4, # 设置每个设备训练批次大小
             gradient_accumulation_steps=4, # 设置梯度累积步数,用于模拟大batch_size
-            max_steps=75, # 设置最大训练步数
-            warmup_steps=5, # 设置预热步数
-            learning_rate=1e-4, # 设置学习率
+            num_train_epochs=3, # 设置训练轮数,2.5K数据建议3-5轮
+            warmup_ratio=0.1, # 设置预热比例,总步数的10%
+            learning_rate=2e-4, # 设置学习率
             fp16=not is_bfloat16_supported(), # 设置fp16
             bf16=is_bfloat16_supported(), # 设置bf16
-            logging_steps=1, # 设置日志步数
+            logging_steps=10, # 每10步记录一次日志
+            save_steps=100, # 每100步保存一次模型
+            eval_steps=100, # 每100步评估一次
             optim="adamw_torch", # 设置优化器
             weight_decay=0.01, # 设置权重衰减
-            lr_scheduler_type="linear", # 设置学习率调度器类型 有cosine_with_restarts,linear,constant,cosine ，默认linear
+            lr_scheduler_type="cosine", # 余弦退火学习率
             seed=3407, # 设置随机种子
         )
         # max_seq_length 越大越好
