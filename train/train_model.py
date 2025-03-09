@@ -163,7 +163,8 @@ def main():
             fp16=not is_bfloat16_supported(),  # 是否使用FP16
             bf16=is_bfloat16_supported(),  # 是否使用BF16
             logging_steps=10,  # 日志记录步数
-            save_strategy="epoch",  # 每个epoch保存一次
+            save_strategy="steps",  # 每隔一定步数保存
+            save_steps=50,  # 每50步保存一次
             evaluation_strategy="steps",  # 更频繁的评估
             eval_steps=50,  # 每50步评估一次
             save_total_limit=3,  # 保存最近3个检查点
@@ -174,9 +175,12 @@ def main():
             weight_decay=MODEL_CONFIG['weight_decay'],  # 权重衰减
             lr_scheduler_type="cosine",  # 学习率调度器类型
             seed=3407,  # 随机种子
-            # 添加早停机制
+        )
+
+        # 创建早停回调
+        early_stopping_callback = EarlyStoppingCallback(
             early_stopping_patience=3,  # 3个评估周期没有改善就停止
-            early_stopping_threshold=0.01,  # 改善阈值
+            early_stopping_threshold=0.01  # 改善阈值
         )
 
         # 创建训练器
@@ -190,11 +194,7 @@ def main():
             dataset_num_proc=4,  # 数据处理进程数
             packing=True,  # 启用序列打包
             args=training_args,
-            # 添加早停回调
-            callbacks=[EarlyStoppingCallback(
-                early_stopping_patience=3,
-                early_stopping_threshold=0.01
-            )]
+            callbacks=[early_stopping_callback]  # 添加早停回调
         )
 
         # 开始训练
