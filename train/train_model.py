@@ -103,7 +103,6 @@ def main():
             weight_decay=0.01, # 设置权重衰减
             lr_scheduler_type="linear", # 设置学习率调度器类型 有cosine_with_restarts,linear,constant,cosine ，默认linear
             seed=3407, # 设置随机种子
-            report_to="None", # 设置报告到wandb
         )
         # max_seq_length 越大越好
         max_seq_length = 2048
